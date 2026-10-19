@@ -147,13 +147,15 @@ class XolixNodeDaemon {
         // XOLIX_SECURITY_CHECKS — production security gates
         const MAX_SUPPLY = 50000000n * (10n ** 18n);
         const txValue = typeof tx.value === 'bigint' ? tx.value : BigInt(tx.value || '0');
-        let totalSupply = 0n;
-        for (const b of this.accountBalances.values()) {
-            if (b > 0n)
-                totalSupply += b;
-        }
-        if (totalSupply + txValue > MAX_SUPPLY) {
-            return { success: false, txHash: tx.txHash, reason: 'Rejected: exceeds 50M XOLT max supply' };
+        // 50M cap: native XOLT transfers only — contract deploys/calls are exempt
+        const isContractDeployOrCall = tx.executionLane === 'EVM' ||
+            (typeof tx.payload === 'string' && tx.payload !== '0x' && tx.payload.length > 2);
+        if (!isContractDeployOrCall) {
+            let totalSupply = 0n;
+            for (const b of this.accountBalances.values()) { if (b > 0n) totalSupply += b; }
+            if (totalSupply + txValue > MAX_SUPPLY) {
+                return { success: false, txHash: tx.txHash, reason: 'Rejected: exceeds 50M XOLT max supply' };
+            }
         }
         // Native coin transfers require non-zero value, but smart contract deployment & calls may have zero value
         const hasSmartContractPayload = Boolean(tx.payload && tx.payload !== '0x' && tx.payload.length > 2);
