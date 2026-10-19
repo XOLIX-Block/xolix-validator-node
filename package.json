@@ -1,0 +1,20 @@
+{
+  "name": "xolix-validator-node",
+  "version": "1.1.0-AegisMesh",
+  "description": "XOLIX FLUID Blockchain Validator Node — run and validate blocks on the XOLIX network",
+  "main": "dist/node/start.js",
+  "bin": {
+    "xolix": "dist/cli/index.js"
+  },
+  "scripts": {
+    "start":   "node dist/node/start.js",
+    "build":   "tsc",
+    "keygen":  "node dist/cli/index.js validator:keygen",
+    "status":  "node dist/cli/index.js validator:list"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["xolix","blockchain","validator","node","p2p","podi"],
+  "license": "UNLICENSED"
+}

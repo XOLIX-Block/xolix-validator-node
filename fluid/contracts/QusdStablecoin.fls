@@ -1,0 +1,119 @@
+// Copyright (c) 2026 Questdrium Next-Gen Technologies R&D. Inc., All rights reserved.
+pragma fluid ^1.0;
+
+import xolix.asset.*;
+import xolix.security.*;
+
+/**
+ * @title QusdStablecoin
+ * @dev Full Production-Ready Native FluidScript Implementation of XOLIX USD Stablecoin (QUSD)
+ * Peg: 1 QUSD = $1.00 USD
+ * Version: v1.0.0-QuantumAether
+ */
+contract QusdStablecoin fluid upgradeable {
+    state persistent {
+        name: string;
+        symbol: string;
+        decimals: uint8;
+        totalSupply: uint256;
+        vaultManager: address;
+        admin: address;
+        paused: bool;
+        map<address, uint256> balances;
+        map<address, map<address, uint256>> allowances;
+    }
+
+    capability asset:mint;
+    capability asset:burn;
+
+    transaction initialize(address _vaultManager)
+    requires _vaultManager != address(0)
+    {
+        preflight {
+            Security.require_no_reentrancy();
+        }
+
+        atomic {
+            name = "XOLIX USD";
+            symbol = "QUSD";
+            decimals = 18;
+            totalSupply = 0;
+            vaultManager = _vaultManager;
+            admin = caller;
+            paused = false;
+        }
+    }
+
+    transaction mint(address to, uint256 amount)
+    requires (caller == vaultManager || caller == admin) && to != address(0) && paused == false
+    {
+        preflight {
+            Security.require_no_reentrancy();
+        }
+
+        atomic {
+            totalSupply += amount;
+            balances[to] += amount;
+        }
+    }
+
+    transaction burn(address from, uint256 amount)
+    requires (caller == vaultManager || caller == admin) && balances[from] >= amount && paused == false
+    {
+        preflight {
+            Security.require_no_reentrancy();
+        }
+
+        atomic {
+            balances[from] -= amount;
+            totalSupply -= amount;
+        }
+    }
+
+    transaction transfer(address recipient, uint256 amount)
+    requires recipient != address(0) && balances[caller] >= amount && paused == false
+    {
+        preflight {
+            Security.require_no_reentrancy();
+        }
+
+        atomic {
+            balances[caller] -= amount;
+            balances[recipient] += amount;
+        }
+    }
+
+    transaction approve(address spender, uint256 amount)
+    requires spender != address(0)
+    {
+        atomic {
+            allowances[caller][spender] = amount;
+        }
+    }
+
+    transaction transferFrom(address sender, address recipient, uint256 amount)
+    requires sender != address(0) && recipient != address(0) && balances[sender] >= amount && allowances[sender][caller] >= amount && paused == false
+    {
+        preflight {
+            Security.require_no_reentrancy();
+        }
+
+        atomic {
+            allowances[sender][caller] -= amount;
+            balances[sender] -= amount;
+            balances[recipient] += amount;
+        }
+    }
+
+    transaction setPaused(bool _paused)
+    requires caller == admin
+    {
+        atomic {
+            paused = _paused;
+        }
+    }
+
+    view query getBalance(address account) returns uint256 {
+        return balances[account];
+    }
+}

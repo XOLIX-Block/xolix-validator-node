@@ -1,0 +1,3 @@
+# Mainnet Genesis Config
+chain_id = 90210
+chain_name = "XOLIX FLUID Mainnet"

@@ -1,0 +1,16 @@
+# Copyright (c) 2026 Questdrium Next-Gen Technologies R&D. Inc., All rights reserved.
+
+# GitHub Linguist Syntax & Language Mapping for FluidScript / Fluid XLS (.fls & .xls)
+# Maps .fls native smart contracts to Solidity for instant GitHub syntax highlighting & language tracking
+*.fls linguist-language=Solidity
+*.xls linguist-language=Solidity
+
+# Git LFS / Line Endings Configuration
+* text=auto eol=lf
+*.sol text eol=lf
+*.fls text eol=lf
+*.xls text eol=lf
+*.ts text eol=lf
+*.rs text eol=lf
+*.json text eol=lf
+*.md text eol=lf

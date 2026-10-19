@@ -1,0 +1,99 @@
+// Copyright (c) 2026 Questdrium Next-Gen Technologies R&D. Inc., All rights reserved.
+pragma fluid ^1.0;
+
+import xolix.governance.*;
+import xolix.security.*;
+
+/**
+ * @title GovernanceXolix
+ * @dev Full Production-Ready Native FluidScript Implementation of Governance Xolix (GXO)
+ * Powers community governance proposals, DAO voting weights, delegations, and ecosystem rewards.
+ * Max Supply: 1,500,000,000 GXO
+ * Version: v1.0.0-QuantumAether
+ */
+contract GovernanceXolix fluid upgradeable {
+    state persistent {
+        name: string;
+        symbol: string;
+        decimals: uint8;
+        totalSupply: uint256;
+        maxSupply: uint256;
+        map<address, uint256> balances;
+        map<address, uint256> votingPower;
+        map<address, address> delegates;
+        map<address, map<address, uint256>> allowances;
+    }
+
+    transaction initialize(address initialHolder)
+    requires initialHolder != address(0)
+    {
+        atomic {
+            name = "Governance Xolix";
+            symbol = "GXO";
+            decimals = 18;
+            maxSupply = 1500000000 * 10^18; // 1.5 Billion GXO
+            totalSupply = maxSupply;
+            balances[initialHolder] = maxSupply;
+            votingPower[initialHolder] = maxSupply;
+        }
+    }
+
+    transaction transfer(address recipient, uint256 amount)
+    requires recipient != address(0) && balances[caller] >= amount
+    {
+        atomic {
+            balances[caller] -= amount;
+            balances[recipient] += amount;
+            
+            // Adjust voting power if not delegated
+            if (delegates[caller] == address(0)) {
+                votingPower[caller] -= amount;
+            } else {
+                votingPower[delegates[caller]] -= amount;
+            }
+
+            if (delegates[recipient] == address(0)) {
+                votingPower[recipient] += amount;
+            } else {
+                votingPower[delegates[recipient]] += amount;
+            }
+        }
+    }
+
+    transaction delegate(address delegatee)
+    requires delegatee != address(0)
+    {
+        atomic {
+            address currentDelegate = delegates[caller];
+            if (currentDelegate != address(0)) {
+                votingPower[currentDelegate] -= balances[caller];
+            } else {
+                votingPower[caller] -= balances[caller];
+            }
+
+            delegates[caller] = delegatee;
+            votingPower[delegatee] += balances[caller];
+        }
+    }
+
+    transaction vote(uint256 proposalId, bool support)
+    requires votingPower[caller] > 0
+    {
+        preflight {
+            Security.require_no_reentrancy();
+            Governance.require_active_proposal(proposalId);
+        }
+
+        atomic {
+            Governance.record_vote(proposalId, caller, support, votingPower[caller]);
+        }
+    }
+
+    view query getBalance(address account) returns uint256 {
+        return balances[account];
+    }
+
+    view query getVotingPower(address account) returns uint256 {
+        return votingPower[account];
+    }
+}

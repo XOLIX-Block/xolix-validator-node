@@ -1,0 +1,3 @@
+block_time_ms = 1000
+max_xcu_per_block = 30000000
+min_validator_stake = 10000

@@ -1,0 +1,10 @@
+node_modules/
+.xolix_data/
+.xolix_data*/
+*.xdb
+*.wal
+*.log
+.env
+*.pem
+*.key
+dist/node/start.js.bak

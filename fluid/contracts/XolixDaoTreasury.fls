@@ -1,0 +1,76 @@
+// Copyright (c) 2026 Questdrium Next-Gen Technologies R&D. Inc., All rights reserved.
+pragma fluid ^1.0;
+
+import xolix.governance.*;
+import xolix.security.*;
+
+/**
+ * @title XolixDaoTreasury
+ * @dev Full Production-Ready Native FluidScript DAO Treasury & Timelock Vault
+ * Version: v1.0.0-QuantumAether
+ */
+contract XolixDaoTreasury fluid upgradeable {
+    state persistent {
+        admin: address;
+        proposalCount: uint256;
+        map<uint256, address> proposalProposers;
+        map<uint256, address> proposalTargets;
+        map<uint256, uint256> proposalAmounts;
+        map<uint256, uint256> proposalVotesFor;
+        map<uint256, uint256> proposalVotesAgainst;
+        map<uint256, bool> proposalExecuted;
+        map<uint256, bool> proposalCanceled;
+        map<uint256, map<address, bool>> hasVoted;
+    }
+
+    transaction createProposal(address target, uint256 amount, string description)
+    requires target != address(0)
+    {
+        atomic {
+            proposalCount += 1;
+            proposalProposers[proposalCount] = caller;
+            proposalTargets[proposalCount] = target;
+            proposalAmounts[proposalCount] = amount;
+            proposalVotesFor[proposalCount] = 0;
+            proposalVotesAgainst[proposalCount] = 0;
+            proposalExecuted[proposalCount] = false;
+            proposalCanceled[proposalCount] = false;
+        }
+    }
+
+    transaction voteOnProposal(uint256 proposalId, bool support, uint256 weight)
+    requires proposalId > 0 && hasVoted[proposalId][caller] == false
+    {
+        atomic {
+            hasVoted[proposalId][caller] = true;
+            if (support) {
+                proposalVotesFor[proposalId] += weight;
+            } else {
+                proposalVotesAgainst[proposalId] += weight;
+            }
+        }
+    }
+
+    transaction executeProposal(uint256 proposalId)
+    requires proposalId > 0 && proposalExecuted[proposalId] == false && proposalCanceled[proposalId] == false
+    {
+        preflight {
+            Governance.require_timelock_elapsed(proposalId);
+            Governance.require_quorum_passed(proposalId, 67);
+            require(proposalVotesFor[proposalId] > proposalVotesAgainst[proposalId]);
+        }
+
+        atomic {
+            proposalExecuted[proposalId] = true;
+            Transfer.send(proposalTargets[proposalId], proposalAmounts[proposalId]);
+        }
+    }
+
+    transaction cancelProposal(uint256 proposalId)
+    requires (caller == admin || caller == proposalProposers[proposalId]) && proposalExecuted[proposalId] == false
+    {
+        atomic {
+            proposalCanceled[proposalId] = true;
+        }
+    }
+}

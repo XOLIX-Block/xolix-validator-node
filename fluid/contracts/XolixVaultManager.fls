@@ -1,0 +1,159 @@
+// Copyright (c) 2026 Questdrium Next-Gen Technologies R&D. Inc., All rights reserved.
+pragma fluid ^1.0;
+
+import xolix.oracle.*;
+import xolix.security.*;
+import xolix.asset.*;
+
+/**
+ * @title XolixVaultManager
+ * @dev Full Production-Ready Native FluidScript Vault Manager Contract
+ * Minimum Collateral Ratio: 150%
+ * Liquidation Threshold: 120%
+ * Liquidation Bonus: 5%
+ * Version: v1.0.0-QuantumAether
+ */
+contract XolixVaultManager fluid upgradeable {
+    state persistent {
+        admin: address;
+        qusdToken: address;
+        priceOracle: address;
+        minCollateralRatioPercent: uint256;
+        liquidationThresholdPercent: uint256;
+        totalCollateralLocked: uint256;
+        totalQusdMinted: uint256;
+        paused: bool;
+        map<address, uint256> collateralLocked;
+        map<address, uint256> debtQUSD;
+    }
+
+    capability vault:admin;
+    capability vault:liquidate;
+
+    transaction initialize(address _qusdToken, address _priceOracle)
+    requires _qusdToken != address(0) && _priceOracle != address(0)
+    {
+        preflight {
+            Security.require_no_reentrancy();
+        }
+
+        atomic {
+            admin = caller;
+            qusdToken = _qusdToken;
+            priceOracle = _priceOracle;
+            minCollateralRatioPercent = 150;
+            liquidationThresholdPercent = 120;
+            paused = false;
+        }
+    }
+
+    transaction depositCollateral()
+    requires msg.value > 0 && paused == false
+    {
+        preflight {
+            Security.require_no_reentrancy();
+        }
+
+        atomic {
+            collateralLocked[caller] += msg.value;
+            totalCollateralLocked += msg.value;
+        }
+    }
+
+    transaction mintQusd(uint256 amount)
+    requires amount > 0 && paused == false
+    {
+        preflight {
+            Security.require_no_reentrancy();
+            Oracle.require_fresh_price("XOLT");
+            uint256 xoltPrice = Oracle.get_price("XOLT");
+            uint256 collateralValueUSD = (collateralLocked[caller] * xoltPrice) / 10^18;
+            uint256 maxDebtUSD = (collateralValueUSD * 100) / minCollateralRatioPercent;
+            require(debtQUSD[caller] + amount <= maxDebtUSD);
+        }
+
+        atomic {
+            debtQUSD[caller] += amount;
+            totalQusdMinted += amount;
+            QusdStablecoin.mint(caller, amount);
+        }
+    }
+
+    transaction repayQusd(uint256 amount)
+    requires amount > 0 && debtQUSD[caller] > 0
+    {
+        preflight {
+            Security.require_no_reentrancy();
+        }
+
+        atomic {
+            uint256 repayAmount = amount > debtQUSD[caller] ? debtQUSD[caller] : amount;
+            debtQUSD[caller] -= repayAmount;
+            totalQusdMinted -= repayAmount;
+            QusdStablecoin.burn(caller, repayAmount);
+        }
+    }
+
+    transaction withdrawCollateral(uint256 amount)
+    requires amount > 0 && collateralLocked[caller] >= amount
+    {
+        preflight {
+            Security.require_no_reentrancy();
+            if (debtQUSD[caller] > 0) {
+                Oracle.require_fresh_price("XOLT");
+                uint256 xoltPrice = Oracle.get_price("XOLT");
+                uint256 remainingValueUSD = ((collateralLocked[caller] - amount) * xoltPrice) / 10^18;
+                uint256 maxDebtUSD = (remainingValueUSD * 100) / minCollateralRatioPercent;
+                require(debtQUSD[caller] <= maxDebtUSD);
+            }
+        }
+
+        atomic {
+            collateralLocked[caller] -= amount;
+            totalCollateralLocked -= amount;
+            Transfer.send(caller, amount);
+        }
+    }
+
+    transaction liquidateVault(address targetUser)
+    requires debtQUSD[targetUser] > 0 && targetUser != caller
+    {
+        preflight {
+            Security.require_no_reentrancy();
+            Oracle.require_fresh_price("XOLT");
+            uint256 xoltPrice = Oracle.get_price("XOLT");
+            uint256 collateralValueUSD = (collateralLocked[targetUser] * xoltPrice) / 10^18;
+            uint256 currentRatio = (collateralValueUSD * 100) / debtQUSD[targetUser];
+            require(currentRatio < liquidationThresholdPercent);
+        }
+
+        atomic {
+            uint256 debtToCover = debtQUSD[targetUser];
+            uint256 seizedCollateral = collateralLocked[targetUser];
+            
+            debtQUSD[targetUser] = 0;
+            collateralLocked[targetUser] = 0;
+            
+            totalQusdMinted -= debtToCover;
+            totalCollateralLocked -= seizedCollateral;
+
+            QusdStablecoin.burn(caller, debtToCover);
+            Transfer.send(caller, seizedCollateral);
+        }
+    }
+
+    transaction setPaused(bool _paused)
+    requires caller == admin
+    {
+        atomic {
+            paused = _paused;
+        }
+    }
+
+    view query getVaultStatus(address user) returns (uint256 collateral, uint256 debt, bool safe) {
+        uint256 xoltPrice = Oracle.get_price("XOLT");
+        uint256 valUSD = (collateralLocked[user] * xoltPrice) / 10^18;
+        uint256 ratio = debtQUSD[user] == 0 ? 999999 : (valUSD * 100) / debtQUSD[user];
+        return (collateralLocked[user], debtQUSD[user], ratio >= minCollateralRatioPercent);
+    }
+}

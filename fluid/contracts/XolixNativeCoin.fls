@@ -1,0 +1,120 @@
+// Copyright (c) 2026 Questdrium Next-Gen Technologies R&D. Inc., All rights reserved.
+pragma fluid ^1.0;
+
+import xolix.asset.*;
+import xolix.security.*;
+
+/**
+ * @title XolixNativeCoin
+ * @dev Full Production-Ready Native FluidScript Implementation of XOLIX Layer 1 Asset (XOLT)
+ * Features capability security, automated 5% burn / 1% treasury sell tax, allowances, and burn controls.
+ * Version: v1.0.0-QuantumAether
+ */
+contract XolixNativeCoin fluid upgradeable {
+    state persistent {
+        name: string;
+        symbol: string;
+        decimals: uint8;
+        totalSupply: uint256;
+        maxSupply: uint256;
+        totalBurned: uint256;
+        protocolTreasury: address;
+        map<address, uint256> balances;
+        map<address, map<address, uint256>> allowances;
+    }
+
+    capability asset:transfer;
+    capability asset:burn;
+    capability security:tax_router;
+
+    transaction initialize(address treasuryAddress)
+    requires treasuryAddress != address(0)
+    {
+        preflight {
+            Security.require_no_reentrancy();
+            Capability.enforce("security:admin");
+        }
+
+        atomic {
+            name = "XOLIX";
+            symbol = "XOLT";
+            decimals = 18;
+            maxSupply = 50000000 * 10^18; // 50 Million XOLT
+            totalSupply = 50000000 * 10^18;
+            totalBurned = 0;
+            protocolTreasury = treasuryAddress;
+            balances[caller] = totalSupply;
+        }
+    }
+
+    transaction transfer(address recipient, uint256 amount)
+    requires recipient != address(0) && balances[caller] >= amount
+    {
+        preflight {
+            Security.require_no_reentrancy();
+            Risk.require_below_threshold(caller, 0.75);
+        }
+
+        atomic {
+            uint256 burnAmount = (amount * 50) / 1000;    // 5% auto-burn
+            uint256 treasuryAmount = (amount * 10) / 1000;// 1% operational fund
+            uint256 sendAmount = amount - burnAmount - treasuryAmount;
+
+            balances[caller] -= amount;
+            balances[recipient] += sendAmount;
+            balances[protocolTreasury] += treasuryAmount;
+            
+            totalBurned += burnAmount;
+            totalSupply -= burnAmount;
+        }
+    }
+
+    transaction approve(address spender, uint256 amount)
+    requires spender != address(0)
+    {
+        atomic {
+            allowances[caller][spender] = amount;
+        }
+    }
+
+    transaction transferFrom(address sender, address recipient, uint256 amount)
+    requires sender != address(0) && recipient != address(0) && balances[sender] >= amount && allowances[sender][caller] >= amount
+    {
+        preflight {
+            Security.require_no_reentrancy();
+        }
+
+        atomic {
+            allowances[sender][caller] -= amount;
+            
+            uint256 burnAmount = (amount * 50) / 1000;
+            uint256 treasuryAmount = (amount * 10) / 1000;
+            uint256 sendAmount = amount - burnAmount - treasuryAmount;
+
+            balances[sender] -= amount;
+            balances[recipient] += sendAmount;
+            balances[protocolTreasury] += treasuryAmount;
+
+            totalBurned += burnAmount;
+            totalSupply -= burnAmount;
+        }
+    }
+
+    transaction burn(uint256 amount)
+    requires balances[caller] >= amount
+    {
+        atomic {
+            balances[caller] -= amount;
+            totalSupply -= amount;
+            totalBurned += amount;
+        }
+    }
+
+    view query getBalance(address account) returns uint256 {
+        return balances[account];
+    }
+
+    view query getAllowance(address owner, address spender) returns uint256 {
+        return allowances[owner][spender];
+    }
+}
