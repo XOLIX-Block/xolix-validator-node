@@ -92,8 +92,8 @@ async function handleValidatorCommand(command, params) {
             const evmAddr = wallet.address.toLowerCase();
             // Derive xolv1 address from EVM address
             const { XolixAddressManager } = require('../../wallet/address.js');
-            const nativeAddr = XolixAddressManager.deriveNativeFromEvm(evmAddr, 'xolv');
-            const rewardAddr = XolixAddressManager.deriveNativeFromEvm(evmAddr, 'xol');
+            const nativeAddr = XolixAddressManager.evmToNative(evmAddr, 'xolv');
+            const rewardAddr = XolixAddressManager.evmToNative(evmAddr, 'xol');
             console.log('');
             console.log('╭──────────────────────────────────────────────────────╮');
             console.log('│     XOLIX Validator Keypair Generated                │');
