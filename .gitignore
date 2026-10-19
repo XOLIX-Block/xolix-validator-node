@@ -8,3 +8,4 @@ node_modules/
 *.pem
 *.key
 dist/node/start.js.bak
+node_modules/

@@ -1,20 +1,55 @@
 {
   "name": "xolix-validator-node",
   "version": "1.1.0-AegisMesh",
-  "description": "XOLIX FLUID Blockchain Validator Node — run and validate blocks on the XOLIX network",
-  "main": "dist/node/start.js",
+  "description": "XOLIX FLUID Blockchain Validator Node",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./sdk": {
+      "types": "./dist/sdk/index.d.ts",
+      "import": "./dist/sdk/index.js",
+      "default": "./dist/sdk/index.js"
+    },
+    "./sdk/typescript": {
+      "types": "./dist/sdk/typescript/index.d.ts",
+      "import": "./dist/sdk/typescript/index.js",
+      "default": "./dist/sdk/typescript/index.js"
+    }
+  },
   "bin": {
+    "fluid": "dist/cli/index.js",
     "xolix": "dist/cli/index.js"
   },
   "scripts": {
-    "start":   "node dist/node/start.js",
-    "build":   "tsc",
-    "keygen":  "node dist/cli/index.js validator:keygen",
-    "status":  "node dist/cli/index.js validator:list"
+    "start": "node dist/node/start.js",
+    "build": "tsc",
+    "keygen": "node dist/cli/index.js validator:keygen",
+    "status": "node dist/cli/index.js validator:list"
   },
-  "engines": {
-    "node": ">=18.0.0"
+  "keywords": [
+    "blockchain",
+    "evm",
+    "xolix",
+    "fluidscript",
+    "xls",
+    "qsc",
+    "podi",
+    "nextjs14"
+  ],
+  "author": "XOLIX FLUID Core Engineering Team",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "typescript": "^5.9.3"
   },
-  "keywords": ["xolix","blockchain","validator","node","p2p","podi"],
-  "license": "UNLICENSED"
+  "dependencies": {
+    "ethers": "^6.17.0",
+    "ts-node": "^10.9.2",
+    "viem": "^2.7.15"
+  }
 }

@@ -15,7 +15,7 @@ const index_js_1 = require("../node/index.js");
 const index_js_2 = require("../fluid/compiler/index.js");
 const index_js_3 = require("./wallet/index.js");
 const index_js_4 = require("./validator/index.js");
-const fullIntegration_test_js_1 = require("../tests/fullIntegration.test.js");
+// system:test not available in validator node
 function runCLI(args) {
     const command = args[0];
     if (!command || command === 'menu' || command === 'interactive') {
@@ -231,7 +231,7 @@ async function executeCommand(command, params) {
         case 'system:test':
         case 'test:all': {
             console.log('Launching Full System Integration & Security Simulation Suite...');
-            (0, fullIntegration_test_js_1.runFullIntegrationAudit)();
+            console.log('system:test not available in validator node. Use the full XOLIX-Block-FLUID-Infrastructure repo.');
             break;
         }
         default: {
