@@ -364,7 +364,7 @@ class XolixRpcServer {
             // === GAS ESTIMATION & SIMULATION ===
             case 'eth_estimateGas':
                 return '0x5208'; // 21,000 gas in hex
-            case 'xolix_registerValidator': {const[na,ra]=params;if(!na||!ra)throw new Error('args');this.daemon.registerValidator(na,ra);return{success:true,message:`Validator ${na} authorized`};}case 'xolix_deregisterValidator': {const[na]=params;this.daemon.deregisterValidator(na||'');return{success:true};}case 'xolix_getActiveValidators': {return this.daemon.consensus.getActiveValidators();}case 'xolix_isValidator': {return this.daemon.consensus.isValidator(params[0]||'');}case 'xolix_simulatePreflight': {
+            case 'xolix_simulatePreflight': {
                 const tx = params[0];
                 tx.value = BigInt(tx.value);
                 if (tx.gasPrice)

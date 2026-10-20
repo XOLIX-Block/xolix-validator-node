@@ -147,12 +147,17 @@ class XolixNodeDaemon {
         // XOLIX_SECURITY_CHECKS — production security gates
         const MAX_SUPPLY = 50000000n * (10n ** 18n);
         const txValue = typeof tx.value === 'bigint' ? tx.value : BigInt(tx.value || '0');
-        // 50M cap: native XOLT transfers only — contract deploys/calls are exempt
+        // 50M cap applies to NATIVE XOLT transfers only.
+        // Contract deployments (EVM lane) and calls with payload are exempt —
+        // they deploy token contracts (GXO 1.5B, QUSD etc) with independent supplies.
         const isContractDeployOrCall = tx.executionLane === 'EVM' ||
             (typeof tx.payload === 'string' && tx.payload !== '0x' && tx.payload.length > 2);
         if (!isContractDeployOrCall) {
             let totalSupply = 0n;
-            for (const b of this.accountBalances.values()) { if (b > 0n) totalSupply += b; }
+            for (const b of this.accountBalances.values()) {
+                if (b > 0n)
+                    totalSupply += b;
+            }
             if (totalSupply + txValue > MAX_SUPPLY) {
                 return { success: false, txHash: tx.txHash, reason: 'Rejected: exceeds 50M XOLT max supply' };
             }
@@ -308,9 +313,6 @@ class XolixNodeDaemon {
     getLatestBlock() {
         return this.chain[this.chain.length - 1];
     }
-    registerValidator(n,r){this.consensus.addValidator(n);if(!this.validatorRewardAddresses)this.validatorRewardAddresses=new Map();this.validatorRewardAddresses.set(n,r);console.log(`[NODE] Validator registered: ${n}`);}
-    deregisterValidator(n){this.consensus.removeValidator(n);}
-    getValidatorRewardAddress(n){return this.validatorRewardAddresses?.get(n)||n;}
     getChainHeight() {
         return this.getLatestBlock().header.blockNumber;
     }
